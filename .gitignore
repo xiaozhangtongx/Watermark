@@ -4,4 +4,4 @@
 *.mp4
 out
 gen
-test
+!/test/
