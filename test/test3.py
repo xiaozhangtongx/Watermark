@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageQt
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QFileDialog, \
-    QProgressBar, QMessageBox
-from PyQt5.QtGui import QPixmap
+    QProgressBar, QMessageBox, QGraphicsScene, QGraphicsView
+from PyQt5.QtGui import QPixmap, QImage, QPainter
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread
 
 
@@ -30,6 +30,9 @@ class WatermarkApp(QWidget):
         self.logo_button = QPushButton('选择Logo', self)
         self.logo_button.clicked.connect(self.load_logo)
 
+        self.preview_label = QLabel(self)
+        self.preview_label.setAlignment(Qt.AlignCenter)
+
         self.process_button = QPushButton('添加水印', self)
         self.process_button.clicked.connect(self.start_processing)
 
@@ -43,6 +46,7 @@ class WatermarkApp(QWidget):
         layout.addWidget(self.video_button)
         layout.addWidget(self.logo_label)
         layout.addWidget(self.logo_button)
+        layout.addWidget(self.preview_label)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.process_button)
 
@@ -58,6 +62,29 @@ class WatermarkApp(QWidget):
 
     def load_logo(self):
         self.logo_path, _ = QFileDialog.getOpenFileName(self, '选择Logo', '', '图像文件 (*.png; *.jpg; *.jpeg)')
+
+        # 显示视频的第一帧预览图
+        if self.video_path and self.logo_path:
+            cap = cv2.VideoCapture(self.video_path)
+            ret, frame = cap.read()
+            if ret:
+                logo = Image.open(self.logo_path)
+                logo = logo.convert("RGBA")
+                logo = logo.resize((int(logo.width * 0.5), int(logo.height * 0.5)))
+
+                logo_layer = Image.new("RGBA", (frame.shape[1], frame.shape[0]), (0, 0, 0, 0))
+                logo_layer.paste(logo, (frame.shape[1] - logo.width - 20, 20), logo)
+
+                pil_frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                frame_with_logo = Image.alpha_composite(pil_frame.convert("RGBA"), logo_layer)
+                result_frame = cv2.cvtColor(np.array(frame_with_logo), cv2.COLOR_RGBA2BGR)
+
+                height, width, channel = result_frame.shape
+                bytes_per_line = 3 * width
+                q_img = QImage(result_frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(q_img).scaledToHeight(400)
+
+                self.preview_label.setPixmap(pixmap)
 
     def start_processing(self):
         if not self.video_path or not self.logo_path:
@@ -105,10 +132,10 @@ class VideoProcessingWorker(QThread):
 
         logo = Image.open(self.logo_path)
         logo = logo.convert("RGBA")
-        logo = logo.resize((int(width * 0.05), int(height * 0.05)))
+        logo = logo.resize((int(logo.width * 0.5), int(logo.height * 0.5)))
 
         logo_layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-        logo_layer.paste(logo, (width - logo.width-20, 20,), logo)
+        logo_layer.paste(logo, (width - logo.width - 20, 20), logo)
 
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
