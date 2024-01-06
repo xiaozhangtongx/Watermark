@@ -4,9 +4,9 @@
 *.mp4
 out
 gen
-!/test/
-!/dist/
-!/build/
-!/output/
-!/main.spec
-!/py_word.spec
+/test/
+/dist/
+/build/
+/output/
+main.spec
+py_word.spec
