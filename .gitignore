@@ -5,3 +5,8 @@
 out
 gen
 !/test/
+!/dist/
+!/build/
+!/output/
+!/main.spec
+!/py_word.spec
